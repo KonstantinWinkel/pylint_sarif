@@ -24,7 +24,14 @@ def main() -> int:
             max_rules=args.max_rules,
             max_artifacts=args.max_artifacts,
         )
-    except (FileExistsError, json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
+    except (
+            FileExistsError,
+            json.JSONDecodeError,
+            MemoryError,
+            OSError,
+            RecursionError,
+            TypeError,
+            ValueError) as exc:
         logging.getLogger(__name__).error("Conversion failed: %s", exc)
         return 1
     return 0

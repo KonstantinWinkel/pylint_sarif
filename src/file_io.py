@@ -4,6 +4,7 @@
 
 import json
 import os
+import stat
 import tempfile
 
 
@@ -34,6 +35,7 @@ def validate_input_output_paths(input_path: str, output_path: str) -> None:
 
     input_path = os.path.abspath(input_path)
     output_path = os.path.abspath(output_path)
+
     if os.path.exists(output_path):
         try:
             paths_collide = os.path.samefile(input_path, output_path)
@@ -49,14 +51,31 @@ def validate_input_output_paths(input_path: str, output_path: str) -> None:
 
 
 def load_json(path: str, maximum_bytes: int) -> object:
-    """Load a JSON file after enforcing its maximum file size."""
+    """Load bounded JSON content from a regular file."""
 
-    input_size = os.path.getsize(path)
-    if input_size > maximum_bytes:
+    open_flags = os.O_RDONLY
+    if hasattr(os, "O_NONBLOCK"):
+        open_flags |= os.O_NONBLOCK
+    if hasattr(os, "O_CLOEXEC"):
+        open_flags |= os.O_CLOEXEC
+
+    file_descriptor = os.open(path, open_flags)
+    try:
+        file_status = os.fstat(file_descriptor)
+        if not stat.S_ISREG(file_status.st_mode):
+            raise ValueError("Input path must refer to a regular file")
+        if file_status.st_size > maximum_bytes:
+            raise ValueError(f"Input file exceeds the {maximum_bytes}-byte size limit")
+
+        with os.fdopen(file_descriptor, "rb", closefd=False) as file_object:
+            content = file_object.read(maximum_bytes + 1)
+    finally:
+        os.close(file_descriptor)
+
+    if len(content) > maximum_bytes:
         raise ValueError(f"Input file exceeds the {maximum_bytes}-byte size limit")
 
-    with open(path, 'r', encoding='utf-8') as file_object:
-        return json.load(file_object)
+    return json.loads(content.decode("utf-8"))
 
 
 def load_template(path: str) -> dict:
@@ -83,6 +102,7 @@ def save_json_atomically(content: dict, path: str, maximum_bytes: int) -> None:
             json.dump(content, limited_writer, ensure_ascii=False, indent=4)
             file_object.flush()
             os.fsync(file_object.fileno())
+
         try:
             os.link(temporary_path, output_path)
         except FileExistsError as exc:

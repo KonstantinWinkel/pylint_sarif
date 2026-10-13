@@ -196,7 +196,7 @@ class PylintSarifConverter:
 
         return artefacts
 
-    def _get_pylint_version(self) -> str:
+    def get_pylint_version(self) -> str:
         """Returns the installed Pylint package version without executing an external command."""
         try:
             return version("pylint")
@@ -209,7 +209,7 @@ class PylintSarifConverter:
 
         self.sarif_content = deepcopy(sarif_template)
 
-        self.sarif_content["runs"][0]["tool"]["driver"]["version"] = self._get_pylint_version()
+        self.sarif_content["runs"][0]["tool"]["driver"]["version"] = self.get_pylint_version()
         self.sarif_content["runs"][0]["tool"]["driver"]["rules"] = rules
         self.sarif_content["runs"][0]["artifacts"] = artifacts
         self.sarif_content["runs"][0]["results"] = results

@@ -56,4 +56,3 @@ def convert(
 
 
 __all__ = ["convert", "PylintSarifConverter"]
-
